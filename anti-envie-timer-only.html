@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anti-envie 5 min</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Anti-envie 5 min">
+  <meta name="theme-color" content="#0f1115">
+  <style>
+    html, body { margin:0; padding:0; background:#0f1115; color:#e9ecf1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 22px 16px 80px; }
+    h1 { color:#cfe1ff; font-size:1.6rem; margin:0 0 10px; }
+    .muted { color:#a9b4c7; margin-bottom:14px; }
+    .card { background:#141925; border:1px solid #233049; border-radius:12px; padding:16px; margin:14px 0; box-shadow:0 3px 14px rgba(0,0,0,.25); }
+    .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .display { font-variant-numeric: tabular-nums; font-size:2.2rem; font-weight:800; background:#101826; padding:10px 14px; border-radius:10px;
+      border:1px solid #22314a; min-width:120px; text-align:center; }
+    button { -webkit-tap-highlight-color: transparent; background:#2a67ff; color:white; border:none; border-radius:10px; padding:12px 14px;
+      font-size:1rem; font-weight:700; box-shadow:0 8px 20px rgba(42,103,255,.35); }
+    button.secondary { background:#334155; box-shadow:none; }
+    button:active { transform: scale(.99); }
+    ul { margin:8px 0 0 1.1rem; }
+    li { margin:6px 0; }
+    .sticky { position:fixed; bottom:12px; left:0; right:0; display:flex; gap:10px; justify-content:center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Anti-envie – minuteur 5 min</h1>
+    <div class="muted">Lance le minuteur puis suis le script ci-dessous, minute par minute.</div>
+
+    <div class="card">
+      <div class="row">
+        <div class="display" id="display">05:00</div>
+        <button id="start">Démarrer</button>
+        <button id="add5" class="secondary">+5 min</button>
+        <button id="reset" class="secondary">Réinitialiser</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="wakelock" class="secondary">🔓 Garder l’écran allumé</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Script 5 minutes</h2>
+      <ul>
+        <li><strong>0–1 min — Respire :</strong> 6 cycles 4–4–6 (inspire 4, bloque 4, expire 6). Relâche mâchoire + épaules.</li>
+        <li><strong>1–2 min — Hydrate :</strong> 6 gorgées lentes d’eau (1 toutes ~10 s). Marche légère.</li>
+        <li><strong>2–3 min — Bouge :</strong> 30–60 s d’étirements (nuque/épaules) ou 20 squats doux.</li>
+        <li><strong>3–4 min — Occupe :</strong> chewing-gum/pastille ou sucer une paille, faire rouler un stylo.</li>
+        <li><strong>4–5 min — Visualise :</strong> scène simple (marcher sur du sable). Phrase clé : “L’envie redescend toute seule.”</li>
+      </ul>
+      <p class="muted">Fin du cycle → évalue l’envie /10. Si &gt;5, relance un cycle.</p>
+    </div>
+  </div>
+
+  <div class="sticky">
+    <button id="start2">Démarrer 5 min</button>
+  </div>
+
+  <script>
+    let duration = 5 * 60;
+    let remaining = duration;
+    let interval = null;
+    let wakeLock = null;
+
+    const display = document.getElementById('display');
+    const start = document.getElementById('start');
+    const start2 = document.getElementById('start2');
+    const add5 = document.getElementById('add5');
+    const reset = document.getElementById('reset');
+    const wakelockBtn = document.getElementById('wakelock');
+
+    function fmt(sec) {
+      const m = Math.floor(sec / 60).toString().padStart(2,'0');
+      const s = Math.floor(sec % 60).toString().padStart(2,'0');
+      return m + ":" + s;
+    }
+    function render() { display.textContent = fmt(remaining); }
+
+    function tick() {
+      remaining--;
+      if (remaining <= 0) {
+        remaining = 0;
+        clearInterval(interval);
+        interval = null;
+        alert("Bien joué. Bois une gorgée d'eau et note l'intensité /10. Relance si besoin.");
+      }
+      render();
+    }
+
+    function startTimer() {
+      if (interval) return;
+      if (remaining === 0) remaining = duration;
+      interval = setInterval(tick, 1000);
+    }
+    function addFive() {
+      remaining += 5 * 60;
+      render();
+    }
+    function resetTimer() {
+      clearInterval(interval);
+      interval = null;
+      remaining = duration;
+      render();
+    }
+    render();
+
+    start.addEventListener('click', startTimer);
+    start2.addEventListener('click', startTimer);
+    add5.addEventListener('click', addFive);
+    reset.addEventListener('click', resetTimer);
+
+    // Screen Wake Lock (iOS 16+ / Safari 16+)
+    async function toggleWakeLock() {
+      try {
+        if (!wakeLock) {
+          if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakelockBtn.textContent = '🔒 Écran maintenu réveillé';
+            wakeLock.addEventListener('release', () => {
+              wakelockBtn.textContent = '🔓 Garder l’écran allumé';
+              wakeLock = null;
+            });
+          } else {
+            alert("Wake Lock non supporté par ce navigateur. Astuce: augmenter le délai d'auto-verrouillage pendant le minuteur.");
+          }
+        } else {
+          await wakeLock.release();
+          wakeLock = null;
+          wakelockBtn.textContent = '🔓 Garder l’écran allumé';
+        }
+      } catch (e) {
+        alert("Wake Lock refusé: " + e.message);
+      }
+    }
+    wakelockBtn.addEventListener('click', toggleWakeLock);
+
+    // Re-demander le wake lock si l'onglet redevient actif
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock && document.visibilityState === 'visible') {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakelockBtn.textContent = '🔒 Écran maintenu réveillé';
+        } catch {}
+      }
+    });
+  </script>
+</body>
+</html>
